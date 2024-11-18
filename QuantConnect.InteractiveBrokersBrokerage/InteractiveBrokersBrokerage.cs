@@ -94,7 +94,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         /// </summary>
         public static string DefaultVersion { get; } = "1019";
 
-        private IBAutomater.IBAutomater _ibAutomater;
+        //private IBAutomater.IBAutomater _ibAutomater;
 
         // Existing orders created in TWS can *only* be cancelled/modified when connected with ClientId = 0
         private const int ClientId = 0;
@@ -671,7 +671,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         {
             if (!IsConnected)
             {
-                if (_ibAutomater.IsWithinScheduledServerResetTimes())
+               /* if (_ibAutomater.IsWithinScheduledServerResetTimes())
                 {
                     // Occasionally the disconnection due to the IB reset period might last
                     // much longer than expected during weekends (even up to the cash sync time).
@@ -679,7 +679,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                     // but we return the existing balances instead.
                     Log.Trace("InteractiveBrokersBrokerage.GetCashBalance(): not connected within reset times, returning existing balances");
                 }
-                else
+                else*/
                 {
                     Log.Trace("InteractiveBrokersBrokerage.GetCashBalance(): not connected, connecting now");
                     Connect();
@@ -957,7 +957,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             }
 
             if (!_isDisposeCalled &&
-                !_ibAutomater.IsWithinScheduledServerResetTimes() &&
+                //!_ibAutomater.IsWithinScheduledServerResetTimes() &&
                 IsConnected &&
                 // do not run heart beat if we are close to daily restarts
                 DateTime.Now.TimeOfDay < _heartBeatTimeLimit &&
@@ -1182,8 +1182,8 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             }
 
             _aggregator.DisposeSafely();
-            _ibAutomater?.Stop();
-            _ibAutomater.DisposeSafely();
+            //_ibAutomater?.Stop();
+            //_ibAutomater.DisposeSafely();
 
             _messagingRateLimiter.DisposeSafely();
             _concurrentHistoryRequests.DisposeSafely();
@@ -1227,7 +1227,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 return;
             }
 
-            ValidateSubscription();
+            //ValidateSubscription();
 
             _isInitialized = true;
             _loadExistingHoldings = loadExistingHoldings;
@@ -1267,18 +1267,18 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
 
             // start IB Gateway
             var exportIbGatewayLogs = true; // Config.GetBool("ib-export-ibgateway-logs");
-            _ibAutomater = new IBAutomater.IBAutomater(ibDirectory, ibVersion, userName, password, tradingMode, port, exportIbGatewayLogs);
-            _ibAutomater.OutputDataReceived += OnIbAutomaterOutputDataReceived;
-            _ibAutomater.ErrorDataReceived += OnIbAutomaterErrorDataReceived;
-            _ibAutomater.Exited += OnIbAutomaterExited;
-            _ibAutomater.Restarted += OnIbAutomaterRestarted;
+            //_ibAutomater = new IBAutomater.IBAutomater(ibDirectory, ibVersion, userName, password, tradingMode, port, exportIbGatewayLogs);
+            //_ibAutomater.OutputDataReceived += OnIbAutomaterOutputDataReceived;
+            //_ibAutomater.ErrorDataReceived += OnIbAutomaterErrorDataReceived;
+            //_ibAutomater.Exited += OnIbAutomaterExited;
+            //_ibAutomater.Restarted += OnIbAutomaterRestarted;
 
-            CheckIbAutomaterError(_ibAutomater.Start(false));
+            //CheckIbAutomaterError(_ibAutomater.Start(false));
 
             // default the weekly restart to one hour before FX market open (GetNextWeekendReconnectionTimeUtc)
             _weeklyRestartUtcTime = weeklyRestartUtcTime ?? _defaultWeeklyRestartUtcTime;
             // schedule the weekly IB Gateway restart
-            StartGatewayWeeklyRestartTask();
+            //StartGatewayWeeklyRestartTask();
 
             Log.Trace($"InteractiveBrokersBrokerage.InteractiveBrokersBrokerage(): Host: {host}, Port: {port}, Account: {account}, AgentDescription: {agentDescription}");
 
@@ -1764,7 +1764,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             if (errorCode == 2105 || errorCode == 2103)
             {
                 // 'connection is broken': if we haven't already let's trigger a gateway restart
-                StartGatewayRestartTask();
+                //StartGatewayRestartTask();
             }
             else if (errorCode == 2106 || errorCode == 2104)
             {
@@ -1936,7 +1936,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 return;
             }
 
-            var isResetTime = _ibAutomater.IsWithinScheduledServerResetTimes();
+            var isResetTime = false; // _ibAutomater.IsWithinScheduledServerResetTimes();
 
             if (!isResetTime)
             {
@@ -4153,7 +4153,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         /// <returns>True if selection can take place</returns>
         public bool CanPerformSelection()
         {
-            return !_ibAutomater.IsWithinScheduledServerResetTimes() && IsConnected;
+            return /*!_ibAutomater.IsWithinScheduledServerResetTimes() &&*/ IsConnected;
         }
 
         /// <summary>
@@ -4584,7 +4584,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         public override bool ShouldPerformCashSync(DateTime currentTimeUtc)
         {
             return base.ShouldPerformCashSync(currentTimeUtc)
-                && !_ibAutomater.IsWithinScheduledServerResetTimes()
+                /*&& !_ibAutomater.IsWithinScheduledServerResetTimes()*/
                 && IsConnected;
         }
 
@@ -4659,7 +4659,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         /// <summary>
         /// Rarely the gateways goes into an invalid state until it's restarted, so we restart the gateway from within so 2FA is not requested
         /// </summary>
-        private void StartGatewayRestartTask()
+        /*private void StartGatewayRestartTask()
         {
             try
             {
@@ -4713,14 +4713,14 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             {
                 Log.Error(ex);
             }
-        }
+        }*/
 
         /// <summary>
         /// Recurring task to schedule the weekly gateway restart, which requires 2FA and can be configured by the user.
         /// This allows to have a scheduled weekly restart that users can configure in order to be able to confirm the weekly 2FA
         /// request at a expected time.
         /// </summary>
-        private void StartGatewayWeeklyRestartTask()
+        /*private void StartGatewayWeeklyRestartTask()
         {
             if (_isDisposeCalled)
             {
@@ -4787,7 +4787,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 // schedule the next weekly restart
                 StartGatewayWeeklyRestartTask();
             });
-        }
+        }*/
 
         private void OnIbAutomaterErrorDataReceived(object sender, ErrorDataReceivedEventArgs e)
         {
@@ -4796,7 +4796,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             Log.Trace($"InteractiveBrokersBrokerage.OnIbAutomaterErrorDataReceived(): {e.Data}");
         }
 
-        private void OnIbAutomaterExited(object sender, ExitedEventArgs e)
+        /*private void OnIbAutomaterExited(object sender, ExitedEventArgs e)
         {
             lock (_lastIBAutomaterExitTimeLock)
             {
@@ -4856,17 +4856,17 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             {
                 OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "IBAutomaterError", result.ErrorMessage));
             }
-        }
+        }*/
 
-        private TimeSpan GetRestartDelay()
+      /*  private TimeSpan GetRestartDelay()
         {
             // during weekends wait until one hour before FX market open before restarting IBAutomater
             return _ibAutomater.IsWithinWeekendServerResetTimes()
                ? GetNextWeekendReconnectionTimeUtc() - DateTime.UtcNow
                : _defaultRestartDelay;
-        }
+        }*/
 
-        private TimeSpan GetWeeklyRestartDelay()
+        /*private TimeSpan GetWeeklyRestartDelay()
         {
             var utcNow = DateTime.UtcNow;
             // during weekends (including the whole Sunday) we wait until the time configured by the user
@@ -4882,9 +4882,9 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             }
 
             return _defaultRestartDelay;
-        }
+        }*/
 
-        private void OnIbAutomaterRestarted(object sender, EventArgs e)
+        /*private void OnIbAutomaterRestarted(object sender, EventArgs e)
         {
             Log.Trace("InteractiveBrokersBrokerage.OnIbAutomaterRestarted()");
 
@@ -4911,7 +4911,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                     OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "IBAutomaterAutoRestartError", exception.ToString()));
                 }
             }
-        }
+        }*/
 
         public static DateTime GetNextSundayFromDate(DateTime date)
         {
