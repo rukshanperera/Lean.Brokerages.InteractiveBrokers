@@ -105,8 +105,12 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
 
         //private IBAutomater.IBAutomater _ibAutomater;
 
-        // Existing orders created in TWS can *only* be cancelled/modified when connected with ClientId = 0
-        private const int ClientId = 0;
+        // Existing orders created in TWS can *only* be cancelled/modified when connected with ClientId = 0.
+        // For multi-algo orchestration (trade-desk), each concurrent Lean instance must connect with a
+        // DISTINCT client id — IB Gateway allows only one API connection per client id. The orchestrator
+        // stamps 'ib-client-id' into each generated instance config; the default of 0 preserves the
+        // original single-instance behavior.
+        private static readonly int ClientId = Config.GetInt("ib-client-id", 0);
 
         // daily restart is at 23:45 local host time
         private static TimeSpan _heartBeatTimeLimit = new(23, 0, 0);
