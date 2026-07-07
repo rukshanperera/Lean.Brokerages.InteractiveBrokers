@@ -764,7 +764,46 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
 
             if (balances.Count == 0)
             {
-                Log.Trace($"InteractiveBrokersBrokerage.GetCashBalance(): no balances found, IsConnected: {IsConnected}, _disconnected1100Fired: {_stateManager.Disconnected1100Fired}");
+                // IB sends CashBalance via UpdateAccountValue with Currency="BASE" for single-currency accounts.
+                // The handler filters out BASE entries (to avoid double-counting multi-currency accounts),
+                // so CashBalances ends up empty. AccountProperties stores ALL keys including BASE ones.
+                // Recover the balance from AccountProperties using the known base currency.
+                var baseCurrency = AccountBaseCurrency ?? "USD";
+                var keysToTry = new[]
+                {
+                    $"{baseCurrency}:CashBalance",   // ideal: currency-specific entry
+                    "BASE:CashBalance",               // single-currency accounts send this
+                    $"{baseCurrency}:TotalCashValue", // fallback: total cash value
+                    "BASE:TotalCashValue"
+                };
+
+                foreach (var key in keysToTry)
+                {
+                    if (_accountData.AccountProperties.TryGetValue(key, out var cashStr)
+                        && decimal.TryParse(cashStr, System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var amount)
+                        && amount != 0)
+                    {
+                        Log.Trace($"InteractiveBrokersBrokerage.GetCashBalance(): derived {baseCurrency} cash from AccountProperties[\"{key}\"] = {amount}");
+                        balances.Add(new CashAmount(amount, baseCurrency));
+                        break;
+                    }
+                }
+
+                if (balances.Count == 0)
+                {
+                    // Fall back to the live-cash-balance config if available (same pattern as PaperBrokerage).
+                    var configCash = Configuration.Config.Get("live-cash-balance");
+                    if (!string.IsNullOrEmpty(configCash))
+                    {
+                        var fallback = Newtonsoft.Json.JsonConvert.DeserializeObject<List<CashAmount>>(configCash);
+                        if (fallback != null && fallback.Count > 0)
+                        {
+                            Log.Trace($"InteractiveBrokersBrokerage.GetCashBalance(): using live-cash-balance config fallback, found {fallback.Count} entries");
+                            return fallback;
+                        }
+                    }
+                    Log.Trace($"InteractiveBrokersBrokerage.GetCashBalance(): no balances found, IsConnected: {IsConnected}, _disconnected1100Fired: {_stateManager.Disconnected1100Fired}");
+                }
             }
 
             return balances;
